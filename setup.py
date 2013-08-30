@@ -12,7 +12,7 @@ finally:
 
 setup(
     name="ofs",
-    version="0.4.1",
+    version="0.4.2",
     description="OFS - provides plugin-orientated low-level blobstore.",
     long_description=long_description,
     author="Ben O'Steen, Friedrich Lindenberg, Rufus Pollock",
@@ -31,6 +31,7 @@ setup(
     s3bounce = ofs.remote.proxystore:S3Bounce
     archive.org = ofs.remote.botostore:ArchiveOrgOFS
     reststore = ofs.remote.reststore:RESTOFS
+    swift = ofs.remote.swiftstore:SwiftOFS
 
     [console_scripts]
     ofs_upload = ofs.command:ofs
