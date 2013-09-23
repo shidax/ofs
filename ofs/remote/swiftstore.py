@@ -7,6 +7,8 @@ try:
     import json
 except ImportError:
     import simplejson as json
+import logging
+
 from datetime import datetime
 from tempfile import mkstemp
 from ofs.base import OFSInterface, OFSException
@@ -14,8 +16,9 @@ from ofs.base import OFSInterface, OFSException
 import swiftclient
 from swiftclient import client
 
-SWIFT_AUTH_VERSION=2
-CHUNK_SIZE=1024
+SWIFT_AUTH_VERSION = 2
+CHUNK_SIZE = 1024
+PUBLIC_HEADER = {"X-Container-Read": ".r:*"}
 
 class SwiftOFS(OFSInterface):
     '''swift backend for OFS.
@@ -38,24 +41,28 @@ class SwiftOFS(OFSInterface):
         try:
             return self.connection.get_object(container, obj, resp_chunk_size=chunk_size)
         except swiftclient.ClientException as e:
+            logging.error(e)
             return None
 
     def _get_container(self, container):
         try: 
             return self.connection.get_container(container)
         except swiftclient.ClientException as e:
+            logging.error(e)
             return None
 
     def _head_container(self, container):
         try:
             return self.connection.head_container(container)
         except swiftclient.ClientException as e:
+            logging.error(e)
             return None
 
     def _head_object(self, container, obj):
         try:        
             return self.connection.head_object(container, obj)
         except swiftclient.ClientException as e:
+            logging.error(e)
             return None
 
     def exists(self, bucket, label=None):
@@ -67,8 +74,7 @@ class SwiftOFS(OFSInterface):
     def claim_bucket(self, bucket):
         try:
             if not self._get_container(bucket):
-                return False
-            self.connection.put_container(bucket)
+                self.connection.put_container(bucket, headers=PUBLIC_HEADER)
             return True
         except swiftclient.ClientException as e:
             return False
@@ -116,10 +122,6 @@ class SwiftOFS(OFSInterface):
             '_last_modified': obj['last-modified'],
             '_format': obj['content-type'],
             '_content_length': obj['content-length'],
-            # Content-MD5 header is not made available from boto it seems but
-            # etag is and it corresponds to MD5. See
-            # http://code.google.com/apis/storage/docs/reference-headers.html#etag
-            # https://github.com/boto/boto/blob/master/boto/s3/key.py#L531
             '_checksum': obj['etag']
         })
         return meta
@@ -127,7 +129,6 @@ class SwiftOFS(OFSInterface):
     def update_metadata(self, bucket, label, params):
         key = self._require_key(self._require_bucket(bucket), label)
         self._update_key_metadata(key, params)
-        # cannot update metadata on its own. way round this is to copy file
         key.copy(key.bucket, key.name, dict(key.metadata), preserve_acl=True)
         key.close()
     
